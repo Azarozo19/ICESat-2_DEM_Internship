@@ -1,0 +1,82 @@
+Using Filezilla to copy files points.las
+
+# Maquina local
+cd C:\Users\Usuario\Desktop\Doctorado\2022\Aero_Lidar
+conda activate PointClouds
+jupyter notebook --no-browser
+
+FileZilla
+sftp://141.89.113.168
+student_lidar27
+Da>phah5eT3ceoc
+
+/DATA/Seb/Permaf/test_folder_28_11_2022
+
+Activate Blas2DEM
+
+/opt/LAStools/bin 
+wine blast2dem.exe -h
+
+Run bash 
+bash /DATA/Seb/Permaf/test_folder_28_11_2022/my_script.sh
+
+# Maquina remota - Enter pcpool - C:\Users\Juan Sebastian\.ssh
+ssh student_lidar27@141.89.113.168
+Password:  Da>phah5eT3ceoc
+cd /DATA/joa/Project
+conda activate PointClouds
+
+### Simple Morphological Filter (SMRF)
+
+pdal translate points.laz -o points_smrf.laz smrf -v 4 
+
+# Extraer sñolo la capa de suelo
+pdal translate points.laz -o points_smrf.laz smrf "limits":"Classification[2:2] -v 4 
+
+# Modify the parameters slope and window for the SMRF filter
+pdal translate points.las -o points_smrf_s02_w300.las smrf --filters.smrf.slope="0.2" --filters.smrf.window="300" -v 4
+
+# Simple Morphological Filter (SMRF) with threshold="0.1"
+pdal points.laz -o points_smrf_t01.laz smrf --filters.smrf.threshold="0.1" -v 4
+
+### Progressive Morphological Filter (PMF)
+# Usando un archivo json (pmf_clase2.json) con valores por deafault pero que solo mostrara la clase 2.
+pdal pipeline pmf_clase2.json
+
+# Este no funcó --> pdal translate points.las -o points_pmf.las pmf --filters.range.limits="Classification[2:2]" -v 4
+
+# Resamplear los new palace porque son muy pesados cd/DATA/joa/LAB03/filtrados
+
+# create .json file follows [Pingel2013].https://pdal.io/stages/filters.smrf.html
+# And run
+pdal pipeline FILE.json
+
+
+### con Outliers
+
+pdal translate \
+points.laz \
+-o points_fgonly.laz \
+outlier smrf range \
+--filters.outlier.method="statistical" \
+--filters.outlier.mean_k=8 \
+--filters.outlier.multiplier=3.0 \
+--filters.smrf.ignore="Classification[7:7]" \
+--filters.range.limits="Classification[2:2]" \
+--writers.las.compression=true \
+-v 4
+
+
+###LasGround
+wine /software/lastools/bin/lasground -i points.laz -town -all_returns -compute_height -olaz -o points_gh.laz
+
+###jugar con los parametros
+wine /software/lastools/bin/lasground \
+-i points.laz \
+-town \
+-spike 0.5\
+-bulge 1.0, \
+-all_returns \
+-compute_height \
+-olaz \
+-o points.las_gh_p.laz
